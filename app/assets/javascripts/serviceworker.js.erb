@@ -10,7 +10,8 @@ function onInstall(event) {
         '<%= asset_path "application.css" %>',
         '/shell_start',
         '/shell_end',
-        '/offline.html'
+        '/offline.html',
+        '/?include=true'
       ]);
     })
   );
@@ -37,9 +38,23 @@ function buildResponse(event, url) {
   const includeUrl = new URL(url);
   includeUrl.searchParams.append('include', true);
 
+  function middleChunk() {
+    return caches.open(CACHE_NAME).then(function(cache) {
+      return cache.match(event.request).then(function(response) {
+        return (
+          response ||
+          fetch(event.request).then(function(response) {
+            cache.put(event.request, response.clone());
+            return response;
+          })
+        );
+      });
+    });
+  }
+
   const parts = [
     caches.match('/shell_start'),
-    fetch(includeUrl),
+    middleChunk(),
     caches.match('/shell_end')
   ];
 
