@@ -4,5 +4,7 @@ Rails.application.routes.draw do
   resources :posts
 
   root 'posts#index'
-  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+
+  get '/shell_start', to: 'application#shell_start'
+  get '/shell_end', to: 'application#shell_end'
 end

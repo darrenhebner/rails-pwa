@@ -2,47 +2,86 @@ var CACHE_VERSION = 'v1';
 var CACHE_NAME = CACHE_VERSION + ':sw-cache-';
 
 function onInstall(event) {
-  console.log('[Serviceworker]', "Installing!", event);
+  console.log('[Serviceworker]', 'Installing!', event);
   event.waitUntil(
     caches.open(CACHE_NAME).then(function prefill(cache) {
       return cache.addAll([
         '<%= asset_path "application.js" %>',
         '<%= asset_path "application.css" %>',
-        '/offline.html',
+        '/shell_start',
+        '/shell_end',
+        '/offline.html'
       ]);
     })
   );
 }
 
 function onActivate(event) {
-  console.log('[Serviceworker]', "Activating!", event);
+  console.log('[Serviceworker]', 'Activating!', event);
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
-        cacheNames.filter(function(cacheName) {
-          return cacheName.indexOf(CACHE_VERSION) !== 0;
-        }).map(function(cacheName) {
-          return caches.delete(cacheName);
-        })
+        cacheNames
+          .filter(function(cacheName) {
+            return cacheName.indexOf(CACHE_VERSION) !== 0;
+          })
+          .map(function(cacheName) {
+            return caches.delete(cacheName);
+          })
       );
     })
   );
 }
 
-function onFetch(event) {
-  event.respondWith(
-    fetch(event.request).catch(function() {
-      return caches.match(event.request).then(function(response) {
-        if (response) {
-          return response;
-        }
+function buildResponse(event, url) {
+  const includeUrl = new URL(url);
+  includeUrl.searchParams.append('include', true);
 
-        if (event.request.mode === 'navigate' ||
-          (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
-          console.log('[Serviceworker]', "Fetching offline content", event);
-          return caches.match('/offline.html');
-        }
-      })
+  const parts = [
+    caches.match('/shell_start'),
+    fetch(includeUrl),
+    caches.match('/shell_end')
+  ];
+
+  const identity = new IdentityStream();
+
+  event.waitUntil(
+    (async function() {
+      for (const responsePromise of parts) {
+        const response = await responsePromise;
+        await response.body.pipeTo(identity.writable, {preventClose: true});
+      }
+      identity.writable.getWriter().close();
+    })()
+  );
+
+  return new Response(identity.readable, {
+    headers: {'Content-Type': 'text/html; charset=utf-8'}
+  });
+}
+
+function onFetch(event) {
+  const url = new URL(event.request.url);
+
+  event.respondWith(
+    new Promise(async resolve => {
+      if (
+        url.origin == location.origin &&
+        (url.pathname.includes('posts') || url.pathname === '/')
+      ) {
+        return resolve(buildResponse(event, url));
+      }
+
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) {
+        return resolve(cachedResponse);
+      }
+
+      try {
+        return resolve(fetch(event.request));
+      } catch (err) {
+        return resolve(await caches.match('/offline.html'));
+      }
     })
   );
 }
@@ -50,3 +89,34 @@ function onFetch(event) {
 self.addEventListener('install', onInstall);
 self.addEventListener('activate', onActivate);
 self.addEventListener('fetch', onFetch);
+
+class IdentityStream {
+  constructor() {
+    let readableController;
+    let writableController;
+
+    this.readable = new ReadableStream({
+      start(controller) {
+        readableController = controller;
+      },
+      cancel(reason) {
+        writableController.error(reason);
+      }
+    });
+
+    this.writable = new WritableStream({
+      start(controller) {
+        writableController = controller;
+      },
+      write(chunk) {
+        readableController.enqueue(chunk);
+      },
+      close() {
+        readableController.close();
+      },
+      abort(reason) {
+        readableController.error(reason);
+      }
+    });
+  }
+}
