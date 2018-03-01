@@ -1,0 +1,11 @@
+<% @posts.each do |post| %>
+  <%= link_to post do %>
+    <div class="popular-post">
+      <div class="site-width">
+        <span class="kicker"><%= post.kicker %></span>
+        <h2><%= post.title.html_safe %></h2>
+        <article><%= post.summary.html_safe %></article>
+      </div>
+    </div>
+  <% end %>
+<% end %>
