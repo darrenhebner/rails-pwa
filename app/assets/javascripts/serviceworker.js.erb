@@ -43,10 +43,12 @@ function buildResponse(event, url) {
       return cache.match(includeUrl).then(function(response) {
         return (
           response ||
-          fetch(includeUrl).then(function(response) {
-            cache.put(includeUrl, response.clone());
-            return response;
-          })
+          fetch(includeUrl)
+            .then(function(response) {
+              cache.put(includeUrl, response.clone());
+              return response;
+            })
+            .catch(err => cache.match('/offline.html').then(res => res))
         );
       });
     });
