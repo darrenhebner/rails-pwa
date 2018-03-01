@@ -40,11 +40,11 @@ function buildResponse(event, url) {
 
   function middleChunk() {
     return caches.open(CACHE_NAME).then(function(cache) {
-      return cache.match(event.request).then(function(response) {
+      return cache.match(includeUrl).then(function(response) {
         return (
           response ||
-          fetch(event.request).then(function(response) {
-            cache.put(event.request, response.clone());
+          fetch(includeUrl).then(function(response) {
+            cache.put(includeUrl, response.clone());
             return response;
           })
         );

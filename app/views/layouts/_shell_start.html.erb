@@ -6,7 +6,6 @@
     <%= csrf_meta_tags %>
 
     <%= stylesheet_link_tag    'application', media: 'all' %>
-    <%= javascript_include_tag 'application' %>
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes">
   </head>
@@ -15,3 +14,15 @@
     <nav>
       <%= link_to 'RAILS PWA', root_path %>
     </nav>
+
+    <div class="site-width">
+      <div class="skeleton">
+        <div class="skeleton__header"></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+    </div>
+
+    <main>
